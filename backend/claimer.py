@@ -1,7 +1,12 @@
-"""进程内认领：同一 Flask 进程后台线程抢 pending，不另起容器。"""
+"""进程内认领：同一 Flask 进程后台线程抢 pending，不另起容器。
+
+只认已钉桩（带坐标快照）的待认领单；退回单（status=returned）不动。
+"""
 import threading
 import time
 from datetime import datetime, timezone
+
+from sqlalchemy import not_
 
 from models import ConvergenceLog, SessionLocal
 from rules import judge
@@ -15,6 +20,7 @@ def claim_once() -> bool:
         row = (
             db.query(ConvergenceLog)
             .filter(ConvergenceLog.status == "pending")
+            .filter(not_(ConvergenceLog.coordinate_snapshot.is_(None)))
             .order_by(ConvergenceLog.id)
             .with_for_update(skip_locked=True)
             .first()
